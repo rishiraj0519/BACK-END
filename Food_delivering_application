@@ -1,0 +1,77 @@
+Registering restaurants or street vendors:
+python
+Copy code
+from flask import Flask, request
+import sqlite3
+
+app = Flask(__name__)
+DATABASE = 'restaurant.db'
+
+def init_db():
+    conn = sqlite3.connect(DATABASE)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS restaurant
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  name TEXT,
+                  address TEXT,
+                  email TEXT,
+                  password TEXT,
+                  menu TEXT,
+                  price INTEGER,
+                  live_orders INTEGER);''')
+    conn.commit()
+    conn.close()
+
+@app.route('/restaurant/register', methods=['POST'])
+def register_restaurant():
+    name = request.form['name']
+    address = request.form['address']
+    email = request.form['email']
+    password = request.form['password']
+    menu = request.form['menu']
+    price = request.form['price']
+    live_orders = 0
+    conn = sqlite3.connect(DATABASE)
+    c = conn.cursor()
+    c.execute('INSERT INTO restaurant (name, address, email, password, menu, price, live_orders) VALUES (?, ?, ?, ?, ?, ?, ?)',
+              (name, address, email, password, menu, price, live_orders))
+    conn.commit()
+    conn.close()
+    return 'Restaurant registered successfully!'
+This code creates a SQLite database to store restaurant information and provides an API endpoint /restaurant/register for restaurant registration. When a restaurant sends a POST request to this endpoint with the required information (name, address, email, password, menu, and price), the code inserts a new row into the restaurant table with the given information.
+
+Customers can create an account and place orders:
+less
+Copy code
+@app.route('/customer/register', methods=['POST'])
+def register_customer():
+    name = request.form['name']
+    email = request.form['email']
+    password = request.form['password']
+    conn = sqlite3.connect(DATABASE)
+    c = conn.cursor()
+    c.execute('INSERT INTO customer (name, email, password) VALUES (?, ?, ?)',
+              (name, email, password))
+    conn.commit()
+    conn.close()
+    return 'Customer registered successfully!'
+
+@app.route('/order', methods=['POST'])
+def place_order():
+    customer_id = request.form['customer_id']
+    restaurant_id = request.form['restaurant_id']
+    items = request.form['items']
+    total_price = request.form['total_price']
+    conn = sqlite3.connect(DATABASE)
+    c = conn.cursor()
+    c.execute('SELECT live_orders FROM restaurant WHERE id = ?', (restaurant_id,))
+    live_orders = c.fetchone()[0]
+    if live_orders >= 10:
+        return 'Sorry, this restaurant is not accepting any more live orders at the moment.'
+    c.execute('INSERT INTO orders (customer_id, restaurant_id, items, total_price) VALUES (?, ?, ?, ?)',
+              (customer_id, restaurant_id, items, total_price))
+    c.execute('UPDATE restaurant SET live_orders = ? WHERE id = ?', (live_orders+1, restaurant_id))
+    conn.commit()
+    conn.close()
+    return 'Order placed successfully!'
+This code provides two API endpoints /customer/register for customer registration and /order for placing orders. When a customer sends a POST request to /customer/register with the required information (name, email, and password), the code inserts a new row into the customer table with the given information. When a customer sends a POST request to /order with the required information (customer_id
